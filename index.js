@@ -4,6 +4,10 @@ const cors = require('cors');
 
 const app = express();
 
+const path = require('path');
+
+app.use(express.static(path.resolve(__dirname, 'dist')));
+
 // Middleware to parse JSON
 app.use(express.json());
 // Middleware to enable CORS
@@ -86,6 +90,11 @@ app.post('/api/persons', (req, res) => {
   persons.push(newPerson);
   res.status(201).json(newPerson);
 });
+
+app.get('*', (req, res) => {
+  res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+});
+
 
 // Server setup
 const PORT = 3001;
