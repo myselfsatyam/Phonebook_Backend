@@ -1,0 +1,94 @@
+const express = require('express');
+const morgan = require('morgan');
+const cors = require('cors');
+
+const app = express();
+
+// Middleware to parse JSON
+app.use(express.json());
+// Middleware to enable CORS
+app.use(cors());
+
+// Custom token to log POST request body
+morgan.token('post-data', (req) => {
+  return req.method === 'POST' ? JSON.stringify(req.body) : '';
+});
+
+// Apply morgan middleware with custom format
+app.use(
+  morgan(':method :url :status :res[content-length] - :response-time ms :post-data')
+);
+
+// In-memory phonebook data
+let persons = [
+  { id: "1", name: "Arto Hellas", number: "040-123456" },
+  { id: "2", name: "Ada Lovelace", number: "39-44-5323523" },
+  { id: "3", name: "Dan Abramov", number: "12-43-234345" },
+  { id: "4", name: "Mary Poppendieck", number: "39-23-6423122" }
+];
+
+// Route 3.1: Get all persons
+app.get('/api/persons', (req, res) => {
+  res.json(persons);
+});
+
+// Route 3.2: Info page
+app.get('/info', (req, res) => {
+  const count = persons.length;
+  const time = new Date();
+  res.send(`<p>Phonebook has info for ${count} people</p><p>${time}</p>`);
+});
+
+// Route 3.3: Get a person by ID
+app.get('/api/persons/:id', (req, res) => {
+  const id = req.params.id;
+  const person = persons.find(p => p.id === id);
+
+  if (person) {
+    res.json(person);
+  } else {
+    res.status(404).json({ error: 'person not found' });
+  }
+});
+
+// Route 3.4: Delete a person by ID
+app.delete('/api/persons/:id', (req, res) => {
+  const id = req.params.id;
+  const initialLength = persons.length;
+  persons = persons.filter(p => p.id !== id);
+
+  if (persons.length < initialLength) {
+    res.status(204).end();
+  } else {
+    res.status(404).json({ error: 'person not found' });
+  }
+});
+
+// Route 3.5 & 3.6: Add a new person
+app.post('/api/persons', (req, res) => {
+  const { name, number } = req.body;
+
+  // 3.6: Error handling
+  if (!name || !number) {
+    return res.status(400).json({ error: 'name and number are required' });
+  }
+
+  if (persons.find(p => p.name === name)) {
+    return res.status(400).json({ error: 'name must be unique' });
+  }
+
+  const newPerson = {
+    id: (Math.random() * 1000000).toFixed(0),
+    name,
+    number
+  };
+
+  persons.push(newPerson);
+  res.status(201).json(newPerson);
+});
+
+// Server setup
+const PORT = 3001;
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
