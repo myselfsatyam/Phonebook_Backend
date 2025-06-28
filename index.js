@@ -1,12 +1,26 @@
 const express = require('express');
 const morgan = require('morgan');
 const cors = require('cors');
-
+const dotenv = require('dotenv');
+dotenv.config();
+const mongoose = require('mongoose');
+// Importing the Person model
+const Person = require('./models/person.js'); // Uncomment this line if using MongoDB with Mongoose
 const app = express();
 
 const path = require('path');
 
 app.use(express.static(path.resolve(__dirname, 'dist')));
+
+const errorHandler = (error, request, response, next) => {
+    console.error(error.message)
+
+    if (error.name === 'CastError') {
+        return response.status(400).send({ error: 'malformatted id' })
+    }
+
+    next(error)
+}
 
 // Middleware to parse JSON
 app.use(express.json());
@@ -22,6 +36,10 @@ morgan.token('post-data', (req) => {
 app.use(
   morgan(':method :url :status :res[content-length] - :response-time ms :post-data')
 );
+
+// Connect to MongoDB
+mongoose.set('strictQuery', false);
+mongoose.connect(process.env.url);
 
 // In-memory phonebook data
 let persons = [
@@ -56,44 +74,35 @@ app.get('/api/persons/:id', (req, res) => {
 });
 
 // Route 3.4: Delete a person by ID
-app.delete('/api/persons/:id', (req, res) => {
-  const id = req.params.id;
-  const initialLength = persons.length;
-  persons = persons.filter(p => p.id !== id);
-
-  if (persons.length < initialLength) {
-    res.status(204).end();
-  } else {
-    res.status(404).json({ error: 'person not found' });
-  }
+app.delete('/api/persons/:id', (req, res, next) => {
+  Person.findByIdAndRemove(req.params.id)
+    .then(result => {
+      if (result) res.status(204).end();
+      else res.status(404).json({ error: 'person not found' });
+    })
+    .catch(error => next(error));
 });
 
 // Route 3.5 & 3.6: Add a new person
-app.post('/api/persons', (req, res) => {
+app.post('/api/persons', (req, res, next) => {
   const { name, number } = req.body;
 
-  // 3.6: Error handling
   if (!name || !number) {
     return res.status(400).json({ error: 'name and number are required' });
   }
+  const person = new Person({ name, number });
 
-  if (persons.find(p => p.name === name)) {
-    return res.status(400).json({ error: 'name must be unique' });
-  }
-
-  const newPerson = {
-    id: (Math.random() * 1000000).toFixed(0),
-    name,
-    number
-  };
-
-  persons.push(newPerson);
-  res.status(201).json(newPerson);
+  person.save()
+    .then(savedPerson => res.status(201).json(savedPerson))
+    .catch(error => next(error));
 });
 
 app.get('*', (req, res) => {
   res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
 });
+
+
+app.use(errorHandler); //error handling middleware
 
 
 // Server setup

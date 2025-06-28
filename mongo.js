@@ -1,4 +1,7 @@
+// BZIm4KXKvDuQ0B
+
 const mongoose = require('mongoose')
+require('dotenv').config()
 
 if (process.argv.length < 5) {
     console.log('invalid request')
@@ -8,8 +11,8 @@ if (process.argv.length < 5) {
 const password = process.argv[2]
 const name = process.argv[3]
 const number = process.argv[4]
-// gwHxC6yyacED8MjM
-const url =process.env.url
+
+const url = process.env.url
 
 mongoose.set('strictQuery', false)
 mongoose.connect(url)
@@ -28,14 +31,18 @@ const person = new Person({
     number: number
 })
 
-person.save().then(result => {
-    console.log(`added ${name} number ${number} to phonebook`)
-    mongoose.connection.close()
-})
-
-Person.find({}).then(result => {
-    result.forEach(person => {
-        console.log(person.name, person.number)
+person.save()
+    .then(() => {
+        console.log(`added ${name} number ${number} to phonebook`)
+        return Person.find({})
     })
-    mongoose.connection.close()
-})
+    .then(result => {
+        result.forEach(person => {
+            console.log(person.name, person.number)
+        })
+        mongoose.connection.close()
+    })
+    .catch(error => {
+        console.error(error)
+        mongoose.connection.close()
+    })
